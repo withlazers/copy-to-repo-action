@@ -48,7 +48,6 @@ runs:
         GIT_USER_EMAIL: "${{ inputs.git_user_email }}"
 
       run: |
-        set -x
         SSH_KEY_FILE="$(mktemp)"
         TARGET_REPO="$(mktemp -d)"
         : ${GIT_USER_NAME:=$GITHUB_ACTOR}
