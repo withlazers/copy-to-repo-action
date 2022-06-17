@@ -1,0 +1,81 @@
+name: 'Copy to Repository'
+description: >
+  Copies files and directories from a workflow run to another repository
+inputs:
+  ssh_key:
+    description: >
+      SSH key used for pushing and pulling.
+    required: true
+  source_path:
+    description: >
+      Source path in the workflow
+    required: true
+  target_repository:
+    description: >
+      Target repository
+    required: true
+  target_branch:
+    description: >
+      The branch the source is copied to.
+    required: false
+    default: ''
+  target_path:
+    description: >
+      The path the source is copied to. Must contain the target file name.
+    required: true
+  commit_message:
+    description: >
+      Commit Message
+    required: true
+  git_user_email:
+    description: >
+      The mail address used in the commit
+  git_user_name:
+    description: >
+      The mail address used in the commit
+runs:
+  using: "composite"
+  steps:
+    - shell: bash
+      env:
+        SSH_KEY: "${{ inputs.ssh_key }}"
+        SOURCE_PATH: "${{ inputs.source_path }}"
+        TARGET_REPOSITORY: "${{ inputs.target_repository }}"
+        TARGET_BRANCH: "${{ inputs.target_branch }}"
+        TARGET_PATH: "${{ inputs.target_path }}"
+        COMMIT_MESSAGE: "${{ inputs.commit_message }}"
+        GIT_USER_NAME: "${{ inputs.git_user_name }}"
+        GIT_USER_EMAIL: "${{ inputs.git_user_email }}"
+
+      run: |
+        set -x
+        SSH_KEY_FILE="$(mktemp)"
+        TARGET_REPO="$(mktemp -d)"
+        : ${GIT_USER_NAME:=$GITHUB_ACTOR}
+        : ${GIT_USER_EMAIL:=$GITHUB_ACTOR@users.noreply.github.com}
+
+        echo "${SSH_KEY}" > "${SSH_KEY_FILE}"
+        git clone \
+          --config core.sshCommand="ssh -i ${SSH_KEY_FILE}" \
+          --depth 1 \
+          ${TARGET_BRANCH:+-b "${TARGET_BRANCH}"} \
+          git@github.com:${{ inputs.target_repository }} \
+          "${TARGET_REPO}"
+
+        git -C "${TARGET_REPO}" config user.name "$GIT_USER_NAME"
+        git -C "${TARGET_REPO}" config user.email "$GIT_USER_EMAIL"
+
+
+        [ -e "${TARGET_REPO}/${TARGET_PATH}" ] && \
+          git -C "${TARGET_REPO}" rm -rf -- "${TARGET_PATH}"
+
+        cp -r -- "${SOURCE_PATH}" \
+          "${TARGET_REPO}/${TARGET_PATH}"
+
+        git -C "${TARGET_REPO}" add -- "${TARGET_PATH}"
+
+        git -C "${TARGET_REPO}" commit -m "${COMMIT_MESSAGE}"
+
+        git -C "${TARGET_REPO}" push
+
+        rm -rf -- "${TARGET_REPO}" "${SSH_KEY_FILE}"
