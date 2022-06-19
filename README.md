@@ -3,7 +3,7 @@ Copies files from a workflow run to another repository
 
 ## Inputs
 
-### source_path:
+### `source_path`
 **Required**
 Source path in the workflow
 
